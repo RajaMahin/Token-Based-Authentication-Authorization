@@ -1,6 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using Token_Based_Authentication_Authorization.Data;
 using Token_Based_Authentication_Authorization.Data.Models;
 using Token_Based_Authentication_Authorization.Data.ViewModels;
@@ -83,11 +87,62 @@ namespace Token_Based_Authentication_Authorization.Controllers
 
             if (userExists != null && await _userManager.CheckPasswordAsync(userExists, loginVM.Password))
             {
-                return Ok("User Signed In");
+                var tokenValue = await GenerateJWTTokenAsync(userExists);
+
+                return Ok(tokenValue);
             }
 
             return Unauthorized();
         }
 
+
+        private async Task<AuthResultVM> GenerateJWTTokenAsync(ApplicationUser user)
+        {
+
+            var authClaims = new List<Claim>()
+            {
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+
+
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+
+                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
+
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+
+            };
+
+
+            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
+
+
+            var token =
+
+                new JwtSecurityToken(
+
+                issuer: _configuration["JWT:ValidIssuer"],
+
+                audience: _configuration["JWT:ValidAudience"],
+
+                expires: DateTime.UtcNow.AddMinutes(1),
+
+                claims: authClaims,
+
+                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+
+
+                );
+
+
+            var jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
+
+
+            return new AuthResultVM
+            {
+                Token = jwtToken,
+                ExpiresAt = token.ValidTo
+            };
+        }
     }
 }
