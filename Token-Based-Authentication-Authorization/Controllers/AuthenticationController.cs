@@ -70,5 +70,24 @@ namespace Token_Based_Authentication_Authorization.Controllers
             }
         }
 
+
+        [HttpPost("login-user")]
+        public async Task<IActionResult> Login([FromBody] LoginVM loginVM)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest("Please, provide all the required fields.");
+            }
+
+            var userExists = await _userManager.FindByEmailAsync(loginVM.EmailAddress);
+
+            if (userExists != null && await _userManager.CheckPasswordAsync(userExists, loginVM.Password))
+            {
+                return Ok("User Signed In");
+            }
+
+            return Unauthorized();
+        }
+
     }
 }
