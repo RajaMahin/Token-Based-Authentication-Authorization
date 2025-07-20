@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Token_Based_Authentication_Authorization.Data;
 using Token_Based_Authentication_Authorization.Data.Models;
+using Token_Based_Authentication_Authorization.Data.ViewModels;
 
 namespace Token_Based_Authentication_Authorization.Controllers
 {
@@ -31,5 +32,43 @@ namespace Token_Based_Authentication_Authorization.Controllers
             _context = context;
             _configuration = configuration;
         }
+
+        [HttpPost("register-user")]
+        public async Task<IActionResult> Register([FromBody] RegisterVM registerVM)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest("Please, provide all the required fields.");
+            }
+
+            var userExists = await _userManager.FindByEmailAsync(registerVM.EmailAddress);
+
+
+            if (userExists != null)
+            {
+                return BadRequest($"User {registerVM.EmailAddress} already exists.");
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = registerVM.UserName,
+                Email = registerVM.EmailAddress,
+                FirstName = registerVM.FirstName,
+                LastName = registerVM.LastName,
+                SecurityStamp = Guid.NewGuid().ToString()
+            };
+
+            var result = await _userManager.CreateAsync(user, registerVM.Password);
+
+            if (result.Succeeded)
+            {
+                return Ok($"User {registerVM.EmailAddress} registered successfully.");
+            }
+            else
+            {
+                return BadRequest($"Error occurred while registering user {registerVM.EmailAddress}.");
+            }
+        }
+
     }
 }

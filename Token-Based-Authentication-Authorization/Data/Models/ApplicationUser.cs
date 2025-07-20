@@ -8,6 +8,6 @@ namespace Token_Based_Authentication_Authorization.Data.Models
 
         public string LastName { get; set; }
 
-        public string Custom { set; get; }
+        public string? Custom { set; get; }
     }
 }
