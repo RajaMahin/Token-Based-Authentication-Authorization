@@ -12,5 +12,6 @@ namespace Token_Based_Authentication_Authorization.Data
 
         }
 
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
     }
 }
