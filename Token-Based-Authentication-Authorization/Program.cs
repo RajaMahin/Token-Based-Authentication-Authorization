@@ -20,6 +20,27 @@ var connectionString = configuration.GetConnectionString("DefaultConnection");
 services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+
+
+/* TOKEN VALIDATION PARAMETERS */
+var tokenValidationParameters = new TokenValidationParameters()
+{
+    ValidateIssuer = true,
+    ValidateAudience = true,
+    ValidateLifetime = true,
+
+    ValidateIssuerSigningKey = true,
+
+    ValidIssuer = configuration["JWT:ValidIssuer"],
+    ValidAudience = configuration["JWT:ValidAudience"],
+
+    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"])),
+
+    ClockSkew = TimeSpan.Zero
+
+};
+services.AddSingleton(tokenValidationParameters);
+
 /* INITIALIZE IDENTITY */
 services.AddIdentity<ApplicationUser, IdentityRole>()
         .AddEntityFrameworkStores<AppDbContext>()
@@ -36,16 +57,7 @@ services.AddAuthentication(options =>
 {
     options.SaveToken = true;
     options.RequireHttpsMetadata = false;
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = configuration["JWT:ValidIssuer"],
-        ValidAudience = configuration["JWT:ValidAudience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"]))
-    };
+    options.TokenValidationParameters = tokenValidationParameters;
 });
 
 /* ADD CONTROLLERS + SWAGGER */

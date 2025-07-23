@@ -20,22 +20,23 @@ namespace Token_Based_Authentication_Authorization.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly TokenValidationParameters _tokenValidationParameters;
 
         public AuthenticationController(
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
             AppDbContext context,
-            IConfiguration configuration
-
+            IConfiguration configuration,
+            TokenValidationParameters tokenValidationParameters
             )
         {
-
-
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
             _configuration = configuration;
+            _tokenValidationParameters = tokenValidationParameters;
         }
+
 
         [HttpPost("register-user")]
         public async Task<IActionResult> Register([FromBody] RegisterVM registerVM)
@@ -74,7 +75,6 @@ namespace Token_Based_Authentication_Authorization.Controllers
             }
         }
 
-
         [HttpPost("login-user")]
         public async Task<IActionResult> Login([FromBody] LoginVM loginVM)
         {
@@ -95,15 +95,14 @@ namespace Token_Based_Authentication_Authorization.Controllers
             return Unauthorized();
         }
 
-
         private async Task<AuthResultVM> GenerateJWTTokenAsync(ApplicationUser user)
         {
 
             var authClaims = new List<Claim>()
             {
                 new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
 
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
 
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
 
@@ -112,7 +111,6 @@ namespace Token_Based_Authentication_Authorization.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
 
             };
-
 
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
 
@@ -131,9 +129,7 @@ namespace Token_Based_Authentication_Authorization.Controllers
 
                 signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
 
-
                 );
-
 
             var jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
 
