@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.Tasks;
 using Token_Based_Authentication_Authorization.Data;
 using Token_Based_Authentication_Authorization.Data.Models;
 using Token_Based_Authentication_Authorization.Data.ViewModels;
@@ -87,7 +89,7 @@ namespace Token_Based_Authentication_Authorization.Controllers
 
             if (userExists != null && await _userManager.CheckPasswordAsync(userExists, loginVM.Password))
             {
-                var tokenValue = await GenerateJWTTokenAsync(userExists);
+                var tokenValue = await GenerateJWTTokenAsync(userExists, null);
 
                 return Ok(tokenValue);
             }
@@ -95,7 +97,58 @@ namespace Token_Based_Authentication_Authorization.Controllers
             return Unauthorized();
         }
 
-        private async Task<AuthResultVM> GenerateJWTTokenAsync(ApplicationUser user)
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] TokenRequestVM tokenRequestVM)
+        {
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest("Please, provide all the required fields.");
+            }
+
+            var result = VerifyAndGenerateTokenAsync(tokenRequestVM);
+            return Ok(result);
+        }
+
+        private async Task<object> VerifyAndGenerateTokenAsync(TokenRequestVM tokenRequestVM)
+        {
+            var jwtTokenHandler = new JwtSecurityTokenHandler();
+
+            var storedToken =
+                await
+                _context
+                .RefreshTokens.FirstOrDefaultAsync(x => x.Token == tokenRequestVM.RefreshToken);
+
+            var dbUser = await _userManager.FindByIdAsync(storedToken.UserId);
+            try
+            {
+                var tokenCheckResult =
+                    jwtTokenHandler.ValidateToken(tokenRequestVM.Token, _tokenValidationParameters, out var validateToken);
+
+                return await GenerateJWTTokenAsync(dbUser, storedToken);
+
+            }
+            catch (SecurityTokenExpiredException)
+            {
+                //IF TOKEN IS STILL VALID THEN GENERATE REFRESH TOKEN 
+                if (storedToken.DateExpire >= DateTime.UtcNow)
+                {
+                    return await GenerateJWTTokenAsync(dbUser, storedToken);
+                }
+                else
+                {
+                    return await GenerateJWTTokenAsync(dbUser, null);
+
+                }
+            }
+            ;
+
+
+            throw new NotImplementedException();
+        }
+
+        private async Task<AuthResultVM> GenerateJWTTokenAsync(ApplicationUser user, RefreshToken rToken)
         {
 
             var authClaims = new List<Claim>()
@@ -131,7 +184,20 @@ namespace Token_Based_Authentication_Authorization.Controllers
 
                 );
 
+
             var jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
+
+            if (rToken != null)
+            {
+                var rTokenResponse = new AuthResultVM
+                {
+                    Token = jwtToken,
+                    RefreshToken = rToken.Token,
+                    ExpiresAt = token.ValidTo
+                };
+
+                return rTokenResponse;
+            }
 
             var refreshToken = new RefreshToken
             {
