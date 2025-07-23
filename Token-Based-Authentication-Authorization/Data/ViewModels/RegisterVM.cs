@@ -17,5 +17,8 @@ namespace Token_Based_Authentication_Authorization.Data.ViewModels
         [Required]
         public string Password { get; set; }
 
+
+        [Required]
+        public string Role { get; set; }
     }
 }
